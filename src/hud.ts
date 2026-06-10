@@ -6,6 +6,7 @@ import {
   StackPanel,
   TextBlock
 } from '@babylonjs/gui';
+import { CLOUD_COUNT } from './config';
 
 const FONT = 'Trebuchet MS, Comic Sans MS, sans-serif';
 
@@ -35,17 +36,19 @@ export class Hud {
   constructor(onStart: () => void, onReplay: () => void) {
     this.ui = AdvancedDynamicTexture.CreateFullscreenUI('hud');
 
-    this.scoreText = makeText('Score: 9999', 30, 'white');
+    this.scoreText = makeText('Score: 9999', 46, '#ffd83d');
+    Hud.emphasize(this.scoreText);
     this.scoreText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.scoreText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.scoreText.left = '20px';
+    this.scoreText.left = '24px';
     this.scoreText.top = '14px';
     this.ui.addControl(this.scoreText);
 
-    this.timeText = makeText('10:00', 30, 'white');
+    this.timeText = makeText('10:00', 46, '#ffd83d');
+    Hud.emphasize(this.timeText);
     this.timeText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
     this.timeText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.timeText.left = '-20px';
+    this.timeText.left = '-24px';
     this.timeText.top = '14px';
     this.ui.addControl(this.timeText);
 
@@ -61,7 +64,7 @@ export class Hud {
     this.startPanel.addControl(startStack);
     startStack.addControl(makeText('Flying Kitty: Find Cloudy! ☁️', 52, '#ffe066'));
     startStack.addControl(
-      makeText('Cloudy is hiding behind one of 40 clouds.', 26, 'white')
+      makeText(`Cloudy is hiding behind one of ${CLOUD_COUNT} clouds.`, 26, 'white')
     );
     startStack.addControl(
       makeText('Fly with arrow keys / WASD (or drag on a tablet).', 26, 'white')
@@ -111,12 +114,21 @@ export class Hud {
     return btn;
   }
 
+  // bold + dark outline so the HUD stays readable over white clouds
+  private static emphasize(tb: TextBlock): void {
+    tb.fontWeight = 'bold';
+    tb.outlineColor = '#2b3a55';
+    tb.outlineWidth = 8;
+  }
+
   setScore(score: number): void {
     this.scoreText.text = `Score: ${score}`;
   }
 
   setTime(secondsLeft: number): void {
-    this.timeText.text = Hud.formatTime(secondsLeft);
+    const s = Math.max(0, Math.ceil(secondsLeft));
+    this.timeText.text = Hud.formatTime(s);
+    this.timeText.color = s <= 60 ? '#ff6b6b' : '#ffd83d';
   }
 
   showMessage(text: string, color = 'white'): void {

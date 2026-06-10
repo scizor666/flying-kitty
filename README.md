@@ -1,7 +1,7 @@
 # Flying Kitty: Find Cloudy ☁️
 
 A 3D search game: fly Kitty around the sky and find Cloudy, who is hiding
-behind one of 40 clouds — before the 10-minute timer runs out!
+behind one of 100 clouds — before the 10-minute timer runs out!
 
 Built with Babylon.js + TypeScript + Vite, installable as a PWA (iPad /
 Android, landscape). Spec and design decisions live in `docs/spec.md`.
@@ -10,9 +10,11 @@ Android, landscape). Spec and design decisions live in `docs/spec.md`.
 
 - **Move**: arrow keys / WASD, or press-and-drag on a touch screen
 - **Peek into a cloud**: fly close until it glows, then press SPACE or tap it
-- Score starts at 9999 and drops 5 for every peek (floor is 1) — checked
-  clouds turn gray but can still be (pointlessly) re-checked
+- Score starts at 9999 and drops 5 for every peek plus 5 per second that
+  ticks by (floor is 1) — checked clouds turn gray but can still be
+  (pointlessly) re-checked
 - Find Cloudy before 10:00 runs out or she's lost in the clouds forever!
+  The timer turns red for the final minute.
 
 ## Commands
 

@@ -91,4 +91,11 @@ These decisions resolve contradictions and gaps found in the original spec:
 7. **Debug mode:** build-time env var `VITE_DEBUG=1` or URL param `?debug=1`
    draws a red outline around the winning cloud.
 8. **PWA:** full-screen responsive canvas, landscape orientation in the
-   manifest, installable on iPad and Android. 
+   manifest, installable on iPad and Android.
+9. **Scaled up (2026-06-09):** cloud count increased from 40 to 100
+   (10×10 grid on an enlarged field). Cloudy is re-hidden behind a new
+   random cloud at the start of every game, including replays.
+10. **Time penalty (2026-06-09):** in addition to −5 per checked cloud, the
+    score drops by 5 points per second of elapsed time (floor stays at 1).
+    Score and timer are shown in a large bold yellow font; the timer turns
+    red during the final minute. 

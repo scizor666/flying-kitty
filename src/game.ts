@@ -28,6 +28,7 @@ import {
   MIN_SCORE,
   SCORE_DECREMENT,
   START_SCORE,
+  TIME_PENALTY_PER_SECOND,
   TOTAL_TIME_SECONDS
 } from './config';
 
@@ -59,6 +60,7 @@ export class Game {
 
   private state: GameState = 'start';
   private score = START_SCORE;
+  private shownScore = -1;
   private timeLeft = TOTAL_TIME_SECONDS;
   private elapsed = 0;
   private replayAllowedAt = 0;
@@ -159,7 +161,7 @@ export class Game {
     mat.emissiveColor = new Color3(0.25, 0.27, 0.3);
     mat.specularColor = Color3.Black();
     mat.alpha = 0.9;
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 45; i++) {
       const blob = this.createCloudBlob(`bg-cloud-${i}`, false);
       blob.material = mat;
       const scale = 1.5 + Math.random() * 2.5;
@@ -167,16 +169,15 @@ export class Game {
       blob.scaling.y *= 0.72;
       blob.position.set(
         FIELD.minX - 40 + Math.random() * (FIELD.maxX - FIELD.minX + 80),
-        Math.random() * 70,
+        FIELD.minY - 10 + Math.random() * (FIELD.maxY - FIELD.minY + 30),
         -60 - Math.random() * 110
       );
     }
   }
 
   private createClouds(): void {
-    const spanX = FIELD.maxX - FIELD.minX;
-    const cellX = (spanX - 12) / (GRID_COLS - 1);
-    const cellY = 46 / (GRID_ROWS - 1);
+    const cellX = (FIELD.maxX - FIELD.minX - 12) / (GRID_COLS - 1);
+    const cellY = (FIELD.maxY - FIELD.minY - 10) / (GRID_ROWS - 1);
     for (let i = 0; i < CLOUD_COUNT; i++) {
       const col = i % GRID_COLS;
       const row = Math.floor(i / GRID_COLS);
@@ -185,7 +186,7 @@ export class Game {
       mesh.material = material;
       mesh.position.set(
         FIELD.minX + 6 + col * cellX + (Math.random() - 0.5) * 6,
-        7 + row * cellY + (Math.random() - 0.5) * 4,
+        FIELD.minY + 5 + row * cellY + (Math.random() - 0.5) * 4,
         (Math.random() - 0.5) * 10
       );
       const scale = 0.85 + Math.random() * 0.35;
@@ -278,9 +279,26 @@ export class Game {
       cloud.mesh.visibility = 1;
     }
     this.pickWinningCloud();
-    this.hud.setScore(this.score);
+    this.shownScore = -1;
     this.hud.setTime(this.timeLeft);
     this.state = 'playing';
+  }
+
+  // Base score only tracks check penalties; the time penalty is derived from
+  // elapsed time so it ticks down smoothly without per-frame bookkeeping.
+  private effectiveScore(): number {
+    return Math.max(
+      MIN_SCORE,
+      this.score - Math.floor(this.elapsed * TIME_PENALTY_PER_SECOND)
+    );
+  }
+
+  private refreshScore(): void {
+    const effective = this.effectiveScore();
+    if (effective !== this.shownScore) {
+      this.shownScore = effective;
+      this.hud.setScore(effective);
+    }
   }
 
   private checkCloud(index: number): void {
@@ -289,8 +307,8 @@ export class Game {
     if (index === this.winningIndex) {
       this.win(cloud);
     } else {
-      this.score = Math.max(MIN_SCORE, this.score - SCORE_DECREMENT);
-      this.hud.setScore(this.score);
+      this.score -= SCORE_DECREMENT;
+      this.refreshScore();
       this.setCloudLook(cloud, true);
       this.hud.showMessage('No Cloudy here.');
     }
@@ -304,8 +322,9 @@ export class Game {
     this.cloudySprite.setEnabled(true);
     this.hud.showMessage('Cloudy found!', '#ffe066');
     this.replayAllowedAt = performance.now() + 1500;
+    const finalScore = this.effectiveScore();
     setTimeout(() => {
-      this.hud.showGameOver(true, this.elapsed, this.score);
+      this.hud.showGameOver(true, this.elapsed, finalScore);
     }, 1500);
   }
 
@@ -313,7 +332,7 @@ export class Game {
     this.state = 'lost';
     this.replayAllowedAt = performance.now() + 800;
     this.hud.setTime(0);
-    this.hud.showGameOver(false, TOTAL_TIME_SECONDS, this.score);
+    this.hud.showGameOver(false, TOTAL_TIME_SECONDS, this.effectiveScore());
   }
 
   // ---------- input ----------
@@ -392,6 +411,7 @@ export class Game {
       this.timeLeft -= dt;
       this.elapsed += dt;
       this.hud.setTime(this.timeLeft);
+      this.refreshScore();
       if (this.timeLeft <= 0) {
         this.lose();
         return;
