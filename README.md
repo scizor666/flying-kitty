@@ -24,6 +24,26 @@ npm run preview    # serve the production build
 node scripts/smoke.mjs   # headless end-to-end smoke test (needs `npm run preview` running)
 ```
 
+## Deploying to GitHub Pages
+
+Push to `main` and `.github/workflows/deploy.yml` builds and publishes the
+game automatically. One-time setup: in the repo settings, set
+**Settings → Pages → Source** to **GitHub Actions**.
+
+The workflow sets `BASE_PATH=/<repo-name>/` so the build works at
+`https://<user>.github.io/<repo-name>/` regardless of the repo name. To test
+that build locally:
+
+```bash
+BASE_PATH=/Cloudy/ npm run build
+BASE_PATH=/Cloudy/ npm run preview   # http://localhost:4173/Cloudy/
+node scripts/offline-test.mjs        # verifies the PWA works fully offline
+```
+
+The service worker precaches every asset (sprites, icons, JS, manifest), so
+once the game is opened — or added to a home screen on iPad/Android — it
+runs completely offline.
+
 ## Debug mode
 
 Add `?debug=1` to the URL (or build with `VITE_DEBUG=1`) to outline the
