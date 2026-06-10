@@ -98,4 +98,9 @@ These decisions resolve contradictions and gaps found in the original spec:
 10. **Time penalty (2026-06-09):** in addition to −5 per checked cloud, the
     score drops by 5 points per second of elapsed time (floor stays at 1).
     Score and timer are shown in a large bold yellow font; the timer turns
-    red during the final minute. 
+    red during the final minute.
+11. **Local leaderboard (2026-06-09):** top-10 scores stored in
+    localStorage and shown on the game-over screen (the current game's entry
+    is highlighted). Only wins are recorded — a timed-out search is not a
+    record. Ties are broken by faster time. The start screen asks for the
+    player's name; the last used name is stored and auto-filled next time. 

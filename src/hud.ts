@@ -1,12 +1,6 @@
-import {
-  AdvancedDynamicTexture,
-  Button,
-  Control,
-  Rectangle,
-  StackPanel,
-  TextBlock
-} from '@babylonjs/gui';
+import { AdvancedDynamicTexture, Control, TextBlock } from '@babylonjs/gui';
 import { CLOUD_COUNT } from './config';
+import { loadPlayerName, type ScoreEntry } from './highscores';
 
 const FONT = 'Trebuchet MS, Comic Sans MS, sans-serif';
 
@@ -22,18 +16,25 @@ function makeText(text: string, sizePx: number, color: string): TextBlock {
   return tb;
 }
 
+function byId<T extends HTMLElement>(id: string): T {
+  return document.getElementById(id) as T;
+}
+
 export class Hud {
   private ui: AdvancedDynamicTexture;
   private scoreText: TextBlock;
   private timeText: TextBlock;
   private messageText: TextBlock;
   private messageTimer: ReturnType<typeof setTimeout> | null = null;
-  private startPanel: Rectangle;
-  private overPanel: Rectangle;
-  private overTitle: TextBlock;
-  private overStats: TextBlock;
 
-  constructor(onStart: () => void, onReplay: () => void) {
+  private startOverlay = byId<HTMLDivElement>('overlay-start');
+  private overOverlay = byId<HTMLDivElement>('overlay-over');
+  private overTitle = byId<HTMLHeadingElement>('over-title');
+  private overStats = byId<HTMLParagraphElement>('over-stats');
+  private recordsBox = byId<HTMLDivElement>('records');
+  private nameInput = byId<HTMLInputElement>('player-name');
+
+  constructor(onStart: () => void) {
     this.ui = AdvancedDynamicTexture.CreateFullscreenUI('hud');
 
     this.scoreText = makeText('Score: 9999', 46, '#ffd83d');
@@ -58,60 +59,13 @@ export class Hud {
     this.messageText.isVisible = false;
     this.ui.addControl(this.messageText);
 
-    this.startPanel = this.makeOverlay();
-    const startStack = new StackPanel();
-    startStack.spacing = 18;
-    this.startPanel.addControl(startStack);
-    startStack.addControl(makeText('Flying Kitty: Find Cloudy! ☁️', 52, '#ffe066'));
-    startStack.addControl(
-      makeText(`Cloudy is hiding behind one of ${CLOUD_COUNT} clouds.`, 26, 'white')
-    );
-    startStack.addControl(
-      makeText('Fly with arrow keys / WASD (or drag on a tablet).', 26, 'white')
-    );
-    startStack.addControl(
-      makeText('Get close to a cloud, then press SPACE or tap it to peek!', 26, 'white')
-    );
-    startStack.addControl(makeText('Press SPACE to Start', 40, '#ffe066'));
-    startStack.addControl(this.makeButton('start-btn', '▶  Start', onStart));
-    this.ui.addControl(this.startPanel);
-
-    this.overPanel = this.makeOverlay();
-    this.overPanel.isVisible = false;
-    const overStack = new StackPanel();
-    overStack.spacing = 20;
-    this.overPanel.addControl(overStack);
-    this.overTitle = makeText('', 52, '#ffe066');
-    this.overStats = makeText('', 30, 'white');
-    this.overStats.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    overStack.addControl(this.overTitle);
-    overStack.addControl(this.overStats);
-    overStack.addControl(this.makeButton('replay-btn', '↻  Play Again', onReplay));
-    this.ui.addControl(this.overPanel);
-  }
-
-  private makeOverlay(): Rectangle {
-    const panel = new Rectangle();
-    panel.width = 1;
-    panel.height = 1;
-    panel.background = 'rgba(20, 40, 70, 0.55)';
-    panel.thickness = 0;
-    panel.isPointerBlocker = true;
-    return panel;
-  }
-
-  private makeButton(name: string, label: string, onClick: () => void): Button {
-    const btn = Button.CreateSimpleButton(name, label);
-    btn.width = '260px';
-    btn.height = '64px';
-    btn.color = 'white';
-    btn.fontSize = 28;
-    btn.fontFamily = FONT;
-    btn.background = '#ff7eb6';
-    btn.cornerRadius = 16;
-    btn.thickness = 0;
-    btn.onPointerUpObservable.add(onClick);
-    return btn;
+    byId<HTMLSpanElement>('cloud-count').textContent = String(CLOUD_COUNT);
+    this.nameInput.value = loadPlayerName();
+    this.nameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') onStart();
+    });
+    byId<HTMLButtonElement>('start-btn').addEventListener('click', onStart);
+    byId<HTMLButtonElement>('replay-btn').addEventListener('click', onStart);
   }
 
   // bold + dark outline so the HUD stays readable over white clouds
@@ -119,6 +73,10 @@ export class Hud {
     tb.fontWeight = 'bold';
     tb.outlineColor = '#2b3a55';
     tb.outlineWidth = 8;
+  }
+
+  getPlayerName(): string {
+    return this.nameInput.value.trim().slice(0, 20) || 'Kitty';
   }
 
   setScore(score: number): void {
@@ -142,18 +100,54 @@ export class Hud {
   }
 
   hideStart(): void {
-    this.startPanel.isVisible = false;
+    this.startOverlay.classList.add('hidden');
+    // drop focus so gameplay keys aren't typed into the (hidden) input
+    this.nameInput.blur();
   }
 
-  showGameOver(won: boolean, timeSpentSeconds: number, score: number): void {
-    this.overTitle.text = won ? 'Cloudy found! 🎉' : 'Cloudy got lost in the clouds forever… 😢';
-    this.overStats.text =
+  showGameOver(
+    won: boolean,
+    timeSpentSeconds: number,
+    score: number,
+    records: ScoreEntry[],
+    currentRank: number
+  ): void {
+    this.overTitle.textContent = won
+      ? 'Cloudy found! 🎉'
+      : 'Cloudy got lost in the clouds forever… 😢';
+    this.overStats.textContent =
       `Time spent: ${Hud.formatTime(timeSpentSeconds)}\n` + `Score: ${score}`;
-    this.overPanel.isVisible = true;
+    this.renderRecords(records, currentRank);
+    this.overOverlay.classList.remove('hidden');
   }
 
   hideGameOver(): void {
-    this.overPanel.isVisible = false;
+    this.overOverlay.classList.add('hidden');
+  }
+
+  private renderRecords(records: ScoreEntry[], currentRank: number): void {
+    this.recordsBox.replaceChildren();
+    if (records.length === 0) return;
+    const heading = document.createElement('h2');
+    heading.textContent = '🏆 Top 10';
+    this.recordsBox.appendChild(heading);
+    const table = document.createElement('table');
+    records.forEach((entry, i) => {
+      const row = table.insertRow();
+      if (i === currentRank) row.className = 'current';
+      const cells: Array<[string, string]> = [
+        ['rank', `${i + 1}.`],
+        ['name', entry.name],
+        ['score', String(entry.score)],
+        ['time', Hud.formatTime(entry.timeSeconds)]
+      ];
+      for (const [cls, text] of cells) {
+        const td = row.insertCell();
+        td.className = cls;
+        td.textContent = text;
+      }
+    });
+    this.recordsBox.appendChild(table);
   }
 
   static formatTime(totalSeconds: number): string {

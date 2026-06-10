@@ -15,6 +15,7 @@ import {
   Vector3
 } from '@babylonjs/core';
 import { Hud } from './hud';
+import { loadScores, recordScore, savePlayerName } from './highscores';
 import {
   CAMERA_DISTANCE,
   CHECK_RADIUS,
@@ -61,6 +62,7 @@ export class Game {
   private state: GameState = 'start';
   private score = START_SCORE;
   private shownScore = -1;
+  private playerName = 'Kitty';
   private timeLeft = TOTAL_TIME_SECONDS;
   private elapsed = 0;
   private replayAllowedAt = 0;
@@ -107,10 +109,7 @@ export class Game {
     this.highlight.addExcludedMesh(this.kitty);
     this.highlight.addExcludedMesh(this.cloudySprite);
 
-    this.hud = new Hud(
-      () => this.startGame(),
-      () => this.startGame()
-    );
+    this.hud = new Hud(() => this.startGame());
     this.hud.setScore(this.score);
     this.hud.setTime(this.timeLeft);
 
@@ -264,6 +263,8 @@ export class Game {
   private startGame(): void {
     if (this.state === 'playing') return;
     if (performance.now() < this.replayAllowedAt) return;
+    this.playerName = this.hud.getPlayerName();
+    savePlayerName(this.playerName);
     this.hud.hideStart();
     this.hud.hideGameOver();
 
@@ -323,8 +324,16 @@ export class Game {
     this.hud.showMessage('Cloudy found!', '#ffe066');
     this.replayAllowedAt = performance.now() + 1500;
     const finalScore = this.effectiveScore();
+    const timeSpent = this.elapsed;
+    // only wins enter the leaderboard — a timed-out search isn't a record
+    const { scores, rank } = recordScore({
+      name: this.playerName,
+      score: finalScore,
+      timeSeconds: timeSpent,
+      date: new Date().toISOString()
+    });
     setTimeout(() => {
-      this.hud.showGameOver(true, this.elapsed, finalScore);
+      this.hud.showGameOver(true, timeSpent, finalScore, scores, rank);
     }, 1500);
   }
 
@@ -332,7 +341,13 @@ export class Game {
     this.state = 'lost';
     this.replayAllowedAt = performance.now() + 800;
     this.hud.setTime(0);
-    this.hud.showGameOver(false, TOTAL_TIME_SECONDS, this.effectiveScore());
+    this.hud.showGameOver(
+      false,
+      TOTAL_TIME_SECONDS,
+      this.effectiveScore(),
+      loadScores(),
+      -1
+    );
   }
 
   // ---------- input ----------
@@ -348,6 +363,8 @@ export class Game {
     // Listen on window (not the canvas) so SPACE works on the start screen
     // before the canvas has ever been focused.
     window.addEventListener('keydown', (event) => {
+      // typing in the name field must not move kitty or start the game
+      if (event.target instanceof HTMLInputElement) return;
       if (GAME_KEYS.has(event.code)) event.preventDefault();
       this.keys.add(event.code);
       if (event.code === 'Space' && !event.repeat) {

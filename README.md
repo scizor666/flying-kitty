@@ -15,6 +15,9 @@ Android, landscape). Spec and design decisions live in `docs/spec.md`.
   (pointlessly) re-checked
 - Find Cloudy before 10:00 runs out or she's lost in the clouds forever!
   The timer turns red for the final minute.
+- Wins land on a local top-10 leaderboard (stored in localStorage) shown on
+  the game-over screen; enter your name on the start screen — it's remembered
+  for next time.
 
 ## Commands
 
